@@ -33,6 +33,12 @@
                 <a href="/users/{{ g.user.id }}/followers">{{ g.user.followers | length }}</a>
               </h4>
             </li>
+            <li class="stat">
+              <p class="small">Likes</p>
+              <h4>
+                <a href="/users/{{ g.user.id }}/likes">{{ g.user.likes | length }}</a>
+              </h4>
+            </li>
           </ul>
         </div>
       </div>
@@ -57,7 +63,11 @@
                 btn-sm 
                 {{'btn-primary' if msg.id in likes else 'btn-secondary'}}"
               >
-                <i class="fa fa-thumbs-up"></i> 
+                {% if msg.id in likes %}
+                  <i class="fa fa-thumbs-up liked"></i> 
+                {% else %}
+                  <i class="fa fa-thumbs-up not-liked"></i> 
+                {% endif %}
               </button>
             </form>
           </li>
