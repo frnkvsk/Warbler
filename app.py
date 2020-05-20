@@ -18,7 +18,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
 toolbar = DebugToolbarExtension(app)
 
@@ -207,23 +207,21 @@ def stop_following(follow_id):
 
     return redirect(f"/users/{g.user.id}/following")
 
-@app.route("/users/<int:user_id>/likes", methods=["POST"])
+@app.route("/users/<int:user_id>/likes", methods=["GET"])
 def show_likes_page(user_id):
     """Show user likes page"""
-    # if not g.user:
-    #     flash("Access unauthorized.", "danger")
-    #     return redirect("/")
-    
-    # likes = g.user.likes
-    # likes=[]
-    # return render_template('users/likes.html')
-    return "<h1> TODO SHOW LIKES PAGE </h1>"
 
-
-
-
-
-
+    if g.user:
+        likes = [x.id for x in g.user.likes if x.user_id != g.user.id]
+        messages = (Message
+                    .query
+                    .filter(Message.id.in_(likes))
+                    .order_by(Message.timestamp.desc())
+                    .limit(100)
+                    .all()) 
+        return render_template('users/likes.html', user=g.user, messages=messages)
+    else:
+        redirect("/")
 
 @app.route('/users/profile', methods=["GET", "POST"])
 def profile():
@@ -237,18 +235,7 @@ def profile():
                 password=form.password.data                
             )
             if user:
-                if form.email.data:
-                    user.email=form.email.data
-                if form.image_url.data:
-                    user.image_url=form.image_url.data or User.image_url.default.arg
-                if form.header_image_url.data:
-                    user.header_image_url=form.header_image_url.data
-                if form.bio.data:
-                    user.bio=form.bio.data
-                if form.location.data:
-                    user.location=form.location.data
-                db.session.add(user)
-                db.session.commit()
+                User.update_user(user.id, form.email.data, form.image_url.data, form.header_image_url.data, form.bio.data, form.location.data)
             else:
                 flash("Error, please recheck your info", 'danger')
         except IntegrityError:
@@ -263,14 +250,12 @@ def profile():
 @app.route("/users/add_like/<int:message_id>", methods=["POST"])
 def add_like(message_id):
     """Add like to user"""
-    like = Likes.query.filter(Likes.message_id==message_id and g.user.id==Likes.user_id).first()
-    if like:
-        db.session.delete(like)
-    else:
-        like = Likes(user_id=g.user.id, message_id=message_id)
-        db.session.add(like)
     
-    db.session.commit()
+    if message_id in [x.id for x in g.user.likes]:
+        Likes.delete_like(g.user.id, message_id)
+    else:
+        Likes.add_like(g.user.id, message_id)
+        
     return redirect("/")
        
     

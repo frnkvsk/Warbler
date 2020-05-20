@@ -48,7 +48,19 @@ class Likes(db.Model):
         unique=True
     )
 
-
+    @classmethod
+    def add_like(cls, user_id, message_id):
+        like = cls(user_id=user_id, message_id=message_id)
+        db.session.add(like)
+        db.session.commit()
+        
+    @classmethod
+    def delete_like(cls, user_id, message_id):
+        like = Likes.query.filter_by(user_id=user_id).filter_by(message_id=message_id).first()
+        db.session.delete(like)
+        db.session.commit()
+        
+        
 class User(db.Model):
     """User in the system."""
 
@@ -169,6 +181,20 @@ class User(db.Model):
 
         return False
 
+    @classmethod
+    def update_user(cls, id, email, image_url, header_image_url, bio, location):
+        user = User.query.filter_by(id=id).first()
+        if email:
+            user.email = email
+        if image_url:
+            user.image_url = image_url
+        if header_image_url:
+            user.header_image_url = header_image_url
+        if bio:
+            user.bio = bio
+        if location:
+            user.location = location
+        db.session.commit()
 
 class Message(db.Model):
     """An individual message ("warble")."""
