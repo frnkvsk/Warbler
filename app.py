@@ -5,11 +5,11 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm, EditProfileForm
-from models import db, connect_db, User, Message, Likes
+from models import db, connect_db, User, Message, Likes, Follows
 
 CURR_USER_KEY = "curr_user"
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static')
 
 # Get DB_URI from environ variable (useful for production/testing) or,
 # if not set there, use development local db.
@@ -18,7 +18,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
 toolbar = DebugToolbarExtension(app)
 
@@ -141,16 +141,7 @@ def users_show(user_id):
     """Show user profile."""
 
     user = User.query.get_or_404(user_id)
-    
-    # snagging messages in order from the database;
-    # user.messages won't be in order by default
-    messages = (Message
-                .query
-                .filter(Message.user_id == user_id)
-                .order_by(Message.timestamp.desc())
-                .limit(100)
-                .all())
-    
+    messages = Message.get_filtered_messages([user_id])
     return render_template('users/show.html', user=user, messages=messages)
 
 
@@ -163,7 +154,8 @@ def show_following(user_id):
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/following.html', user=user)
+     
+    return render_template('users/associates.html', user=user, associates=user.following)
 
 
 @app.route('/users/<int:user_id>/followers')
@@ -175,7 +167,7 @@ def users_followers(user_id):
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/followers.html', user=user)
+    return render_template('users/associates.html', user=user, associates=user.followers)
 
 
 @app.route('/users/follow/<int:follow_id>', methods=['POST'])
@@ -212,14 +204,10 @@ def show_likes_page(user_id):
     """Show user likes page"""
 
     if g.user:
-        likes = [x.id for x in g.user.likes if x.user_id != g.user.id]
-        messages = (Message
-                    .query
-                    .filter(Message.id.in_(likes))
-                    .order_by(Message.timestamp.desc())
-                    .limit(100)
-                    .all()) 
-        return render_template('users/likes.html', user=g.user, messages=messages)
+        liked = [x.id for x in g.user.likes if x.user_id != g.user.id]
+        messages = Message.get_liked_messages(liked)
+        likes = [x.id for x in g.user.likes if x.id != g.user.id]
+        return render_template('users/likes.html', user=g.user, messages=messages, likes=likes)
     else:
         redirect("/")
 
@@ -247,16 +235,17 @@ def profile():
     else:
         return render_template('users/edit.html', form=form)
 
-@app.route("/users/add_like/<int:message_id>", methods=["POST"])
-def add_like(message_id):
-    """Add like to user"""
+# @app.route("/users/add_like/<int:message_id>", methods=["POST"])
+# def add_like(message_id):
+#     """Add like to user"""
     
-    if message_id in [x.id for x in g.user.likes]:
-        Likes.delete_like(g.user.id, message_id)
-    else:
-        Likes.add_like(g.user.id, message_id)
-        
-    return redirect("/")
+#     if message_id in [x.id for x in g.user.likes]:
+#         Likes.delete_like(g.user.id, message_id)
+#     else:
+#         Likes.add_like(g.user.id, message_id)
+    
+#     db.session.commit()   
+#     return redirect("/")
        
     
 @app.route('/users/delete', methods=["POST"])
@@ -292,8 +281,8 @@ def messages_add():
     form = MessageForm()
 
     if form.validate_on_submit():
-        msg = Message(text=form.text.data)
-        g.user.messages.append(msg)
+        message = Message(text=form.text.data)
+        g.user.messages.append(message)
         db.session.commit()
 
         return redirect(f"/users/{g.user.id}")
@@ -305,8 +294,9 @@ def messages_add():
 def messages_show(message_id):
     """Show a message."""
 
-    msg = Message.query.get(message_id)
-    return render_template('messages/show.html', message=msg)
+    # message = Message.query.get(message_id)
+    message = Message.get_message_by_id(message_id)
+    return render_template('messages/show.html', message=message)
 
 
 @app.route('/messages/<int:message_id>/delete', methods=["POST"])
@@ -316,14 +306,27 @@ def messages_destroy(message_id):
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
-
-    msg = Message.query.get(message_id)
-    db.session.delete(msg)
+   
+    Message.delete_message(message_id)
     db.session.commit()
 
     return redirect(f"/users/{g.user.id}")
 
-
+@app.route("/do_like", methods=["POST"])
+def do_like():
+    """Handle likes from javascript"""
+    message_id = request.form["message_id"]
+    if int(message_id) in [x.id for x in g.user.likes]:        
+        Likes.delete_like(g.user.id, message_id)
+    else:
+        Likes.add_like(g.user.id, message_id)
+        
+    db.session.commit()
+    return None    
+        
+        
+        
+        
 ##############################################################################
 # Homepage and error pages
 
@@ -334,15 +337,12 @@ def homepage():
 
     - anon users: no messages
     - logged in: 100 most recent messages of followed_users
+    The homepage for logged-in-users should show the last 100 warbles only from the users that the logged-in user is following, and that user, rather than warbles from all users.
     """
-
+    print("PAGE JUST RELOADED------------------------------------------")
     if g.user:
-        messages = (Message
-                    .query
-                    .filter(Message.user_id.in_([y.id for y in g.user.following]))
-                    .order_by(Message.timestamp.desc())
-                    .limit(100)
-                    .all()) 
+        messages = Message.get_filtered_messages([y.id for y in g.user.following])
+        
         likes = [x.id for x in g.user.likes if x.id != g.user.id]
         return render_template('home.html', messages=messages, likes=likes)
 

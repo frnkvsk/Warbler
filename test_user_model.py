@@ -57,6 +57,7 @@ class UserModelTestCase(TestCase):
         self.assertEqual(len(u.messages), 0)
         self.assertEqual(len(u.followers), 0)
         
+    
         # Does the repr method work as expected?
         # Does is_following successfully detect when user1 is following user2?
         # Does is_following successfully detect when user1 is not following user2?

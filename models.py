@@ -52,13 +52,11 @@ class Likes(db.Model):
     def add_like(cls, user_id, message_id):
         like = cls(user_id=user_id, message_id=message_id)
         db.session.add(like)
-        db.session.commit()
         
     @classmethod
     def delete_like(cls, user_id, message_id):
         like = Likes.query.filter_by(user_id=user_id).filter_by(message_id=message_id).first()
         db.session.delete(like)
-        db.session.commit()
         
         
 class User(db.Model):
@@ -181,6 +179,7 @@ class User(db.Model):
 
         return False
 
+    
     @classmethod
     def update_user(cls, id, email, image_url, header_image_url, bio, location):
         user = User.query.filter_by(id=id).first()
@@ -224,7 +223,26 @@ class Message(db.Model):
     )
 
     user = db.relationship('User')
+    
+    @classmethod
+    def get_message_by_id(cls, id):
+        message = Message.query.get(id)
+        return message
+        
+    @classmethod
+    def get_filtered_messages(cls, filtered_list):
+        messages = Message.query.filter(Message.user_id.in_(filtered_list)).order_by(Message.timestamp.desc()).limit(100).all()
+        return messages
+    
+    @classmethod
+    def get_liked_messages(cls, liked):
+        messages = Message.query.filter(Message.id.in_(liked)).order_by(Message.timestamp.desc()).limit(100).all()
+        return messages
 
+    @classmethod
+    def delete_message(cls, message_id):
+        message = Message.query.get(message_id)
+        db.session.delete(message)
 
 def connect_db(app):
     """Connect this database to provided Flask app.

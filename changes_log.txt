@@ -1,0 +1,5 @@
+1. Fixed logout route in app.py
+2. Fixed user profile to show bio, location, header image
+3. Fixed profile edit
+4. Fixed user cards for followers and following warblers
+5. 

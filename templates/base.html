@@ -15,6 +15,7 @@
         href="https://use.fontawesome.com/releases/v5.3.1/css/all.css">
   <link rel="stylesheet" href="/static/stylesheets/style.css">
   <link rel="shortcut icon" href="/static/favicon.ico">
+  <script type="text/javascript" src="/static/js/app.js"></script>
 </head>
 
 <body class="{% block body_class %}{% endblock %}">
@@ -58,8 +59,10 @@
   {% endfor %}
 
   {% block content %}
+  
   {% endblock %}
-
+  
 </div>
+<script src="https://unpkg.com/axios/dist/axios.js"></script>
 </body>
 </html>

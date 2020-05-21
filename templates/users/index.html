@@ -1,22 +1,14 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h1>TESTING TESTING => index.html</h1>
-
   {% if users|length == 0 %}
     <h3>Sorry, no users found</h3>
   {% else %}
     <div class="row justify-content-end">
       <div class="col-sm-9">
         <div class="row">
-
           {% for user in users %}
-
             <div class="col-lg-4 col-md-6 col-12">
-
-
-
-
               <div class="card user-card">
                 <div class="card-inner">
                   <div class="image-wrapper">

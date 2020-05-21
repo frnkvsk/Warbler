@@ -523,13 +523,14 @@ p.card-bio {
   margin-bottom: 10px;
 }
 
+.not-liked {
+  color: white;
+}
+
 .liked {
   color: yellow;
 }
 
-.not-liked {
-  color: white;
-}
 /* ================================ 404 page */
 
 .message-404 {
