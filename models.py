@@ -146,19 +146,35 @@ class User(db.Model):
 
         Hashes password and adds user to system.
         """
+        if username and email and password:
+            hashed_pwd = bcrypt.generate_password_hash(password).decode('UTF-8')
+
+            user = User(
+                username=username,
+                email=email,
+                password=hashed_pwd,
+                image_url=image_url,
+            )
+
+            db.session.add(user)
+            return user
+        else:
+            return None
+    @classmethod
+    def change_password(cls, id, password):
+        """Change user password.
+
+        Hashes password and adds user to system.
+        """
 
         hashed_pwd = bcrypt.generate_password_hash(password).decode('UTF-8')
 
-        user = User(
-            username=username,
-            email=email,
-            password=hashed_pwd,
-            image_url=image_url,
-        )
+        user = cls.query.filter_by(id=id).first()
+        user.password = hashed_pwd
 
         db.session.add(user)
         return user
-
+    
     @classmethod
     def authenticate(cls, username, password):
         """Find user with `username` and `password`.

@@ -1,4 +1,7 @@
 
+/**
+ * Handles likes for likes.html
+ */
 function doLike(args) {
     let [id, message_id] = args.split(',')
     let count = parseInt($(".likes").text())

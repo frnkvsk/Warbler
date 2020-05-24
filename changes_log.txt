@@ -1,5 +1,13 @@
 1. Fixed logout route in app.py
 2. Fixed user profile to show bio, location, header image
-3. Fixed profile edit
-4. Fixed user cards for followers and following warblers
-5. 
+3. Fixed user cards for followers and following warblers
+4. Fixed profile edit
+5. Fixed homepage
+6. Added like functionality through server
+7. Added custom 404 page
+8. Changed like functionality from server to js ajax
+9. Dried up templates and got rid of some repetition in followers/following
+10. Dried up urls with url_for
+11. Optimized queries
+12. Added a change password functionality
+TODO: Add user admin, add user blocking, add direct messaging.

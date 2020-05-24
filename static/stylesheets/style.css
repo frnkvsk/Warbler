@@ -524,7 +524,7 @@ p.card-bio {
 }
 
 .not-liked {
-  color: white;
+  color: lightgray;
 }
 
 .liked {
@@ -532,8 +532,33 @@ p.card-bio {
 }
 
 /* ================================ 404 page */
+.page404-container {
+  display: flex;
+  width: 100vw;
+  height: 92vh;
+  margin: 0;
+  padding: 0;
+  background-color: white;
+}
 
-.message-404 {
+#img-404 {
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.page404-control {
+  position: absolute;
+  top: 10%;
+  left: 10%;
+  font-size: 2em;
+  text-align: center;
+  padding: 3%;
+  border: 4px dashed rgb(231, 229, 229);
+  border-radius: 50%;
+}
+/* .message-404 {
   color: white;
   margin-top: 2em;
   text-align: center;
@@ -543,10 +568,10 @@ p.card-bio {
   color: white;
 }
 
-.message-404 > h4.display-4 {
-  font-size: 2.5em;
+.page404-control > h1 {
+  font-size: 1.5em;
 }
 
 .message-404 .form-inline input {
   flex: 1;
-}
+} */

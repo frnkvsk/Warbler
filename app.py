@@ -1,10 +1,10 @@
 import os
 
 from flask import Flask, render_template, request, flash, redirect, session, g, url_for
-from flask_debugtoolbar import DebugToolbarExtension
+# from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm, EditProfileForm
+from forms import UserAddForm, LoginForm, MessageForm, EditProfileForm, ChangePasswordForm
 from models import db, connect_db, User, Message, Likes, Follows
 
 CURR_USER_KEY = "curr_user"
@@ -18,13 +18,16 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
+# app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
-toolbar = DebugToolbarExtension(app)
+# toolbar = DebugToolbarExtension(app)
 
 connect_db(app)
 
 
+
+    
+        
 ##############################################################################
 # User signup/login/logout
 
@@ -52,7 +55,17 @@ def do_logout():
     if CURR_USER_KEY in session:
         del session[CURR_USER_KEY]
     
-
+def authorize(f):
+    def unauth():
+        flash("Access unauthorized.", "danger")
+        return render_template("home-anon.html")
+    def wrapper(*args, **kwargs):
+        f(*args, **kwargs)
+    if g:
+        return wrapper
+    else:
+        return unauth
+        
 @app.route('/signup', methods=["GET", "POST"])
 def signup():
     """Handle user signup.
@@ -64,9 +77,7 @@ def signup():
     If the there already is a user with that username: flash message
     and re-present form.
     """
-
     form = UserAddForm()
-
     if form.validate_on_submit():
         try:
             user = User.signup(
@@ -119,13 +130,14 @@ def logout():
 ##############################################################################
 # General user routes:
 
+
+@authorize
 @app.route('/users')
 def list_users():
     """Page with listing of users.
 
     Can take a 'q' param in querystring to search by that username.
     """
-
     search = request.args.get('q')
 
     if not search:
@@ -135,7 +147,7 @@ def list_users():
 
     return render_template('users/index.html', users=users)
 
-
+@authorize
 @app.route('/users/<int:user_id>')
 def users_show(user_id):
     """Show user profile."""
@@ -144,39 +156,27 @@ def users_show(user_id):
     messages = Message.get_filtered_messages([user_id])
     return render_template('users/show.html', user=user, messages=messages)
 
-
+@authorize
 @app.route('/users/<int:user_id>/following')
 def show_following(user_id):
     """Show list of people this user is following."""
-
-    if not g.user:
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
 
     user = User.query.get_or_404(user_id)
      
     return render_template('users/associates.html', user=user, associates=user.following)
 
-
+@authorize
 @app.route('/users/<int:user_id>/followers')
 def users_followers(user_id):
     """Show list of followers of this user."""
 
-    if not g.user:
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
     user = User.query.get_or_404(user_id)
     return render_template('users/associates.html', user=user, associates=user.followers)
 
-
+@authorize
 @app.route('/users/follow/<int:follow_id>', methods=['POST'])
 def add_follow(follow_id):
-    """Add a follow for the currently-logged-in user."""
-
-    if not g.user:
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
+    """Add a user to the following relationship for the currently-logged-in user."""
 
     followed_user = User.query.get_or_404(follow_id)
     g.user.following.append(followed_user)
@@ -184,14 +184,10 @@ def add_follow(follow_id):
 
     return redirect(f"/users/{g.user.id}/following")
 
-
+@authorize
 @app.route('/users/stop-following/<int:follow_id>', methods=['POST'])
 def stop_following(follow_id):
     """Have currently-logged-in-user stop following this user."""
-
-    if not g.user:
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
 
     followed_user = User.query.get(follow_id)
     g.user.following.remove(followed_user)
@@ -199,31 +195,30 @@ def stop_following(follow_id):
 
     return redirect(f"/users/{g.user.id}/following")
 
+@authorize
 @app.route("/users/<int:user_id>/likes", methods=["GET"])
 def show_likes_page(user_id):
     """Show user likes page"""
+    liked = [x.id for x in g.user.likes if x.user_id != g.user.id]
+    messages = Message.get_liked_messages(liked)
+    likes = [x.id for x in g.user.likes if x.id != g.user.id]
+    return render_template('users/likes.html', user=g.user, messages=messages, likes=likes)
 
-    if g.user:
-        liked = [x.id for x in g.user.likes if x.user_id != g.user.id]
-        messages = Message.get_liked_messages(liked)
-        likes = [x.id for x in g.user.likes if x.id != g.user.id]
-        return render_template('users/likes.html', user=g.user, messages=messages, likes=likes)
-    else:
-        redirect("/")
-
+@authorize
 @app.route('/users/profile', methods=["GET", "POST"])
-def profile():
+def update_profile():
     """Update profile for current user."""
-    form = EditProfileForm()
+    form = EditProfileForm()    
     
     if form.validate_on_submit():
         try:
             user = User.authenticate(
-                username=form.username.data,
+                username=g.user.username,
                 password=form.password.data                
             )
             if user:
                 User.update_user(user.id, form.email.data, form.image_url.data, form.header_image_url.data, form.bio.data, form.location.data)
+                db.session.commit()
             else:
                 flash("Error, please recheck your info", 'danger')
         except IntegrityError:
@@ -235,26 +230,34 @@ def profile():
     else:
         return render_template('users/edit.html', form=form)
 
-# @app.route("/users/add_like/<int:message_id>", methods=["POST"])
-# def add_like(message_id):
-#     """Add like to user"""
+@authorize
+@app.route('/users/changepw', methods=["GET", "POST"])
+def changepw():
+    """Update profile for current user."""
+    form = ChangePasswordForm()  
+    if form.validate_on_submit():
+        try:
+            user = User.authenticate(
+                username=g.user.username,
+                password=form.oldPassword.data                
+            )
+            if user:
+                User.change_password(g.user.id, form.newPassword1.data)
+                db.session.commit()
+            else:
+                flash("Error, please recheck your info", 'danger')
+        except IntegrityError:
+            flash("Error, please recheck your info", 'danger')
+            return render_template('users/edit.html', form=form)
+
+        return redirect("/")
+    else:
+        return render_template('users/change-password.html', form=form)       
     
-#     if message_id in [x.id for x in g.user.likes]:
-#         Likes.delete_like(g.user.id, message_id)
-#     else:
-#         Likes.add_like(g.user.id, message_id)
-    
-#     db.session.commit()   
-#     return redirect("/")
-       
-    
+@authorize
 @app.route('/users/delete', methods=["POST"])
 def delete_user():
     """Delete user."""
-
-    if not g.user:
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
 
     do_logout()
 
@@ -267,19 +270,14 @@ def delete_user():
 ##############################################################################
 # Messages routes:
 
+@authorize
 @app.route('/messages/new', methods=["GET", "POST"])
 def messages_add():
     """Add a message:
 
     Show form if GET. If valid, update message and redirect to user page.
     """
-
-    if not g.user:
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
     form = MessageForm()
-
     if form.validate_on_submit():
         message = Message(text=form.text.data)
         g.user.messages.append(message)
@@ -289,43 +287,34 @@ def messages_add():
 
     return render_template('messages/new.html', form=form)
 
-
+@authorize
 @app.route('/messages/<int:message_id>', methods=["GET"])
 def messages_show(message_id):
-    """Show a message."""
-
-    # message = Message.query.get(message_id)
+    """Show a message."""    
     message = Message.get_message_by_id(message_id)
     return render_template('messages/show.html', message=message)
 
-
+@authorize
 @app.route('/messages/<int:message_id>/delete', methods=["POST"])
 def messages_destroy(message_id):
     """Delete a message."""
-
-    if not g.user:
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
    
     Message.delete_message(message_id)
     db.session.commit()
 
     return redirect(f"/users/{g.user.id}")
 
+@authorize
 @app.route("/do_like", methods=["POST"])
 def do_like():
-    """Handle likes from javascript"""
-    message_id = request.form["message_id"]
+    """Handle likes from javascript"""    
+    message_id = request.form["message_id"]    
     if int(message_id) in [x.id for x in g.user.likes]:        
         Likes.delete_like(g.user.id, message_id)
     else:
-        Likes.add_like(g.user.id, message_id)
-        
+        Likes.add_like(g.user.id, message_id)        
     db.session.commit()
-    return None    
-        
-        
-        
+    return 'None'
         
 ##############################################################################
 # Homepage and error pages
@@ -333,22 +322,19 @@ def do_like():
 
 @app.route('/')
 def homepage():
-    """Show homepage:
-
-    - anon users: no messages
-    - logged in: 100 most recent messages of followed_users
+    """Show homepage:    
     The homepage for logged-in-users should show the last 100 warbles only from the users that the logged-in user is following, and that user, rather than warbles from all users.
     """
-    print("PAGE JUST RELOADED------------------------------------------")
     if g.user:
-        messages = Message.get_filtered_messages([y.id for y in g.user.following])
-        
+        messages = Message.get_filtered_messages([y.id for y in g.user.following])        
         likes = [x.id for x in g.user.likes if x.id != g.user.id]
         return render_template('home.html', messages=messages, likes=likes)
-
     else:
-        return render_template('home-anon.html')
+        return render_template("home-anon.html")
 
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template("messages/page404.html", title = '404'), 404
 
 ##############################################################################
 # Turn off all caching in Flask
@@ -366,3 +352,7 @@ def add_header(req):
     req.headers["Expires"] = "0"
     req.headers['Cache-Control'] = 'public, max-age=0'
     return req
+
+
+
+        

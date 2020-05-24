@@ -1,4 +1,4 @@
-"""Message model tests."""
+"""Likes model tests."""
 
 # run these tests like:
 #
@@ -31,7 +31,7 @@ from app import app
 db.create_all()
 
 
-class MessageModelTestCase(TestCase):
+class LikesModelTestCase(TestCase):
     """Test views for messages."""
 
     def setUp(self):
@@ -56,23 +56,18 @@ class MessageModelTestCase(TestCase):
         testmessage = Message.get_message_by_id(message1.id)
         self.assertEqual(user1.id, testmessage.user_id)
         
-        """Test get_filtered_messages"""
-        filtered_List = [user1.id]
-        testmessage = Message.get_filtered_messages(filtered_List)
-        self.assertEqual(user1.id, testmessage[0].user_id)
-        
-        """Test get_liked_messages"""
+        """Test add_like"""
         hashed_pwd2 = bcrypt.generate_password_hash("HASHED_PASSWORD2").decode('UTF-8')
         user2 = User(email="test2@test.com", username="testuser2", password=hashed_pwd2)
-        db.session.add(user1)
+        db.session.add(user2)
         db.session.commit()
-        user2.likes.append(message1.id)
-        liked = [message1.id]
-        testmessage = Message.get_liked_messages(liked)
-        self.assertEqual(message1.id, testmessage[0].id)
+        Likes.add_like(user2.id, message1.id)
+        db.session.commit()
+        self.assertEqual(user2.likes[0].id, message1.id)
         
-        """Test delete_message"""
-        before = db.session.query(Message).count()
-        Message.delete_message(message1.id)
-        after = db.session.query(Message).count()
+        """Test delete_like"""
+        before = len(user2.likes)
+        Likes.delete_like(user2.id, message1.id)
+        db.session.commit()
+        after = len(user2.likes)        
         self.assertEqual(before - 1, after)

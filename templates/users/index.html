@@ -19,7 +19,6 @@
                       <img src="{{ user.image_url }}" alt="Image for {{ user.username }}" class="card-image">
                       <p>@{{ user.username }}</p>
                     </a>
-
                     {% if g.user %}
                       {% if g.user.is_following(user) %}
                         <form method="POST">
@@ -33,15 +32,12 @@
                         </form>
                       {% endif %}
                     {% endif %}
-
                   </div>
                   <p class="card-bio">BIO HERE</p>
                 </div>
               </div>
             </div>
-
           {% endfor %}
-
         </div>
       </div>
     </div>
