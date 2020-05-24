@@ -13,4 +13,5 @@ A Twitter clone with a Springboard spin!
 10. Dried up urls with url_for
 11. Optimized queries
 12. Added a change password functionality
+13. Dried up authorization by adding a Python decorator
 TODO: Add user admin, add user blocking, add direct messaging.
