@@ -1,5 +1,5 @@
 # Warbler
-A Twitter clone with a Springboard spin!
+A Twitter clone 
 
 1. Fixed logout route in app.py
 2. Fixed user profile to show bio, location, header image
